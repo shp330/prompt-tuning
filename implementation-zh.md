@@ -15,51 +15,46 @@ of the implementation.
 ## Vocabulary and Notation
 
 *   **B ::** The batch size.
-*   **T ::** The sequence dimension of input, the number of tokens in an
-    example.
+*   **T ::** 输入的序列维度，即单个样本中的 token 数量.
 *   **H ::** The hidden/embedding dimension of the model.
 *   **P ::** The length of the prompt.
 *   **Model Tuning ::** Transfer a model to a new task by updating all the
     parameters in the models. Commonly called fine-tuning.
-*   **Prefix-LM ::** A language model that expects `inputs` and `targets`
-    features in its batch dictionary. This kind of model can support a causal
-    attention mask or an prefix attention mask.
-*   **Causal Attention Mask ::** An attention mask where each timestep can only
-    see the timesteps before it. See mask #2 in Figure 3 of the
+*   **前缀语言模型（Prefix-LM）**：一种期望在批次字典中同时包含输入特征和目标特征的语言模型。
+    这类模型支持两种注意力掩码：因果注意力掩码和前缀注意力掩码.
+*   **因果注意力掩码（Causal Attention Mask）**：一种注意力掩码机制，其中每个时间步（timestep）仅能关注到它之前的时间步。See mask #2 in Figure 3 of the
     [T5 paper](https://arxiv.org/pdf/1910.10683.pdf).
-*   **Prefix Attention Mask ::** An attention mask where there is some prefix of
-    the input where attention has bidirectional visibility. See mask #3 in
+*   **前缀注意力掩码**：一种注意力掩码机制，其中输入的某段前缀部分支持双向注意力可见性
+    （即前缀内部的时间步可以互相关注） See mask #3 in
     Figure 3 of the [T5 paper](https://arxiv.org/pdf/1910.10683.pdf). *Note:*
     The use of this mask implies the use a `Prefix-LM` but the use of a
     `Prefix-LM` doesn't imply the use of this mask.
-*   **verbalizers ::** The string used to represent a class
+*   **表述器（verbalizers）**：用于表示类别标签的字符串
     [(Schick and Schütze, 2021)](https://arxiv.org/pdf/2001.07676.pdf).
 
 ## Modeling in T5X
 
-There are three levels of modeling when it comes to T5X.
+当涉及 T5X 框架的模型构建时，存在三个层级的建模结构，
 
 1.  [T5X/models.py](https://github.com/google-research/t5x/tree/main/t5x/models.py) ::
-    The outermost layer is the model classes in T5X. These are normal python
-    classes (not subclasses of Flax's `nn.Module`) that include methods like
-    `predict_batch` and `compute_logits`. They handle interacting with the
-    underlying Flax module, making the Flax `init` and `apply` calls.
+    最外层是 T5X 框架定义的模型类。
+    这些是标准的 Python 类（并非 Flax 框架 `nn.Module` 的子类），包含 `predict_batch`（批量预测）和 
+    `compute_logits`（计算对数概率）等方法。它们负责与底层的 `Flax` 模块进行交互，调用 Flax 框架的 `init`（初始化）和 
+    `apply`（前向计算）方法来完成核心逻辑的执行。
 2.  [Flaxformer EncoderDecoder](https://github.com/google/flaxformer/tree/main/flaxformer/architectures/t5/t5_architecture.py) ::
-    This layer is a Flaxformer module that handles the execution flow of the
-    underlying components. For example, the `EncoderDecoder` class which has
-    `encode` and `decode` methods, references to the actual encoder and decoder
-    model, and a `__call__` function that handles calling these in the correct
-    order. This layer is also responsible for creating the attention masks which
-    is the main reason we interact with it.
+    这一层是 Flaxformer 库中的模块，负责管控底层各个组件的执行流程。
+    例如，`EncoderDecoder` 类不仅包含 `encode`（编码）和 `decode`（解码）方法，
+    持有实际编码器（encoder）和解码器（decoder）模型的引用，
+    还定义了 `__call__` 方法来确保这些组件按正确的顺序被调用。
+    此外，这一层还负责生成注意力掩码 —— 这也是我们需要与该层级进行交互的主要原因。
 3.  [Flaxformer Encoder and Decoder](https://github.com/google/flaxformer/tree/main/flaxformer/architectures/t5/t5_architecture.py) ::
-    This layer is the Flaxformer modules that actually do the work, things like
-    `Encoder`. We modify this layer to actually add the prompts to the input.
+    这一层是真正执行任务的 `Flaxformer` 模块（例如 `Encoder` 类就属于这一层）。
+    我们对这一层进行了定制修改，实现了将提示参数实际添加到输入中的功能。
+    
+## Creating Prompts 提示参数的构建
 
-## Creating Prompts
-
-Our approach to prompting uses a prompt module that generates the prompt
-parameters which are added to the embedded input rather than using special
-virtual tokens with updatable embeddings.
+我们的提示方案采用了一个提示模块来生成提示参数，并将这些参数直接添加到经过嵌入处理的输入中；
+而非采用带有可更新嵌入向量的特殊虚拟词元。
 
 我们提示（prompt）机制的核心实现在
 [prompts.py](https://github.com/google-research/prompt-tuning/tree/main/prompt_tuning/prompts.py) 文件中.
