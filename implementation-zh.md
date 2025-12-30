@@ -14,11 +14,11 @@ of the implementation.
 
 ## Vocabulary and Notation
 
-*   **B ::** The batch size.
-*   **T ::** 输入的序列维度，即单个样本中的 token 数量.
-*   **H ::** The hidden/embedding dimension of the model.
-*   **P ::** The length of the prompt.
-*   **Model Tuning ::** Transfer a model to a new task by updating all the
+*   **B：** The batch size.
+*   **T：** 输入的序列维度，即单个样本中的 token 数量.
+*   **H：** The hidden/embedding dimension of the model.
+*   **P：** The length of the prompt.
+*   **Model Tuning：** Transfer a model to a new task by updating all the
     parameters in the models. Commonly called fine-tuning.
 *   **前缀语言模型（Prefix-LM）**：一种期望在批次字典中同时包含输入特征和目标特征的语言模型。
     这类模型支持两种注意力掩码：因果注意力掩码和前缀注意力掩码.
