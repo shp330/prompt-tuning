@@ -421,13 +421,35 @@ class Prompt(nn.Module):
 
 class InferenceOnlyPrompt(nn.Module):
   """An inference only prompt that reads from a file.
+  定义了一个名为 InferenceOnlyPrompt 的 Flax（JAX 生态中的神经网络库）模块，
+  用于在推理阶段高效加载一个固定、不可训练的提示向量（只读、常量式地加载 Prompt），
+  而不是将其作为可训练参数存储在模型中。
 
+  目的：
+      绕过将 prompt 作为模型参数带来的内存/分区问题。
+
+  这是一个用于推理时绕过某些内存问题的 Prompt 实现。与将 prompt 作为模型的实际参数不同，
+  它被加载为一个常量，在训练或推理过程中不会被更新。
   This is a Prompt that sidesteps some memory issues when loading a prompt for
   inference. Instead of the prompt being an actual parameter of the model, it
   is loaded with a constant that is not updated over time.
 
+  使用前提：
+    - fallback_to_scratch = False（不要回退到随机初始化）；
+    - 常配合 Gin 配置文件 prompts/from_file.gin 使用：通过 Gin 注入一个从 .npy 文件加载的初始化器。
+
   When using this module `fallback_to_scratch` should be set to `false`. This
   module is generally used in conjunction with `prompts/from_file.gin`.
+
+  Notes:
+      在 Prompt Tuning 或 Prefix Tuning 等方法中，会在输入前添加一组可学习的向量（称为 prompt），
+      这些向量参与模型前向传播但不更新原始模型参数。通常这些 prompt 是模型的可训练参数。
+
+      但在推理阶段（inference），我们只需要加载预训练好的 prompt，不需要更新它。
+      如果仍将其声明为 nn.Parameter，会带来：
+        - 不必要的内存开销；
+        - 与参数分区（如模型并行）兼容性问题；
+        - 检查点管理复杂。
 
   Example configuration:
   ```
@@ -449,6 +471,9 @@ class InferenceOnlyPrompt(nn.Module):
   dtype: DType = jnp.float32
 
   def setup(self):
+    """
+    创建普通 JAX 数组 - 是不可训练参数
+    """
     self.prompt = jnp.array(
         self.prompt_init(jax.random.PRNGKey(0), (self.length, self.embed_dim)))
 

@@ -13,12 +13,22 @@ PROMPT_FILE = %gin.REQUIRED
 
 PROMPT = @train_prompts.Prompt
 train_prompts.Prompt.prompt = @prompts.Prompt()
+
+# 1. 先配置最底层的数据源
+# 从环境变量给 np_load 方法的 path 参数赋值
+prompt_init/prompts.np_load.path = %PROMPT_FILE
+
+# 2. 再配置中间层
+# 【调用】 prompt_init 命名空间的 prompts.np_load() 方法，
+# 并将返回值赋给 该命名空间下 prompts.from_array() 方法的  prompt 参数
+prompt_init/prompts.from_array.prompt = @prompt_init/prompts.np_load()
+
+# 3. 最后配置顶层对象
 prompts.Prompt:
   length = %PROMPT_LENGTH
+  # 【调用】 prompt_init 命名空间的 prompts.from_array() 方法，
+  # 并将方法返回值赋给 prompts.Prompt 对象的 prompt_init 属性
   prompt_init = @prompt_init/prompts.from_array()
-
-prompt_init/prompts.from_array.prompt = @prompt_init/prompts.np_load()
-prompt_init/prompts.np_load.path = %PROMPT_FILE
 
 # Then set overrides in the launch script:
 # --gin.PROMPT_FILE="'/path/to/numpy/prompt'"
