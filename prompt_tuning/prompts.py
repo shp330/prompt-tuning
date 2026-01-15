@@ -179,7 +179,7 @@ def from_sample_of_embeddings(
     Note:
       If the number of prompt tokens requested is larger than the total number
       of vectors we are drawing from (`population_size`) we do sampling with
-      replacement.
+      replacement. 若所需的提示词令牌数量，大于我们从中采样的向量总数量（即population_size），则执行有放回采样。
 
     Args:
       rng: The rng seed used in our sampling.
@@ -192,6 +192,8 @@ def from_sample_of_embeddings(
 
     Returns:
       A sample of the embedding table as a jax array. [P, H]
+       嵌入表的一个样本，以 JAX 数组格式存储，形状为 [P, H]。
+
     """
     if embeddings.shape[-1] != shape[-1]:
       raise ValueError(
@@ -272,6 +274,7 @@ def from_embedded_list(
       In the case that a provided work is broken into multiple pieces by the
       vocabulary, the mean of the resulting embedding vectors is used as the
       initialization.
+      当输入的目标文本被分词器切分为多个词汇片段时，会将这些片段对应的嵌入向量的均值，作为初始嵌入表示。
 
     Args:
       rng: The jax rng that is passed to the sub-initializer.
@@ -381,17 +384,17 @@ class Prompt(nn.Module):
 
   Attributes:
     length: The length of the prompt, P.
-    prompt_init: An initializer function for the variable.
-    axis_names: Logical names for the parameter axes. Note: We use
-      "prompt_embed" as the second dimension so that the prompt is always
-      replicated, even when using 2-way parameter partitioning when the "embed"
-      dimension would get partitioned. This makes it possible to save the prompt
-      as a numpy file. If the prompt needs to be partitioned, one can change the
-      second dimension to "embed", but the prompt variable will need to be
-      managed by the t5x checkpointing utilities (i.e. the numpy checkpoint will
-      not be the full prompt and you will need to save multiple t5x checkpoints)
-      and `prompt_tuning.scripts.extract_variable` to create a numpy checkpoint.
-    dtype: The dtype of the activations for this module.
+    prompt_init: An initializer function for the variable. 变量的初始化函数
+    axis_names: Logical names for the parameter axes. 参数维度的逻辑名称
+
+    Notes:
+        我们将 prompt_embed 设为第二维度（而非常规嵌入层的 embed），以确保提示向量始终被完整复制；
+        即便在启用双向参数切分（Data Parallel + Model Parallel）的场景下（此时常规的 embed 维度会被切分），提示向量也不会被拆分。
+        常规嵌入层的 embed 维度会被 T5X 的并行机制切分到多个设备上，而 prompt_embed 作为自定义维度，会被整体保留在单个设备（或指定设备组）中
+        这种设置支持将提示向量直接保存为完整的 NumPy 文件，无需额外处理。 若需对提示向量进行切分，可将第二维度修改为embed，
+        但此时提示向量变量需由 T5X 的检查点工具管理（即生成的 NumPy 检查点不包含完整提示向量，需保存多个 T5X 检查点），
+        并通过脚本 `prompt_tuning.scripts.extract_variable` 提取并生成完整的 NumPy 格式检查点。
+    dtype: The dtype of the activations for this module. 当前模块中激活值的数据类型。
   """
   length: int
   prompt_init: Initializer = nn.initializers.uniform()
@@ -404,7 +407,7 @@ class Prompt(nn.Module):
 
     Args:
       x: [B, T] The sequence of input tokens.
-      x_embed: [B, T, H] The sequence of embedded input tokens.
+      x_embed: [B, T, H] The sequence of embedded input tokens. 作用是提取嵌入维度大小 H，避免手动指定 embed_dim，让模块更灵活。
 
     Returns:
       The prompt variable. [P, H]
